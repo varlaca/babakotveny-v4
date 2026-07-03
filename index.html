@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babakötvény Könyvelő & Kalkulátor</title>
+    <style>
+:root {
+    --bg-color: #121214;
+    --card-bg: #1a1a1e;
+    --input-bg: #26262b;
+    --text-color: #e4e4e7;
+    --text-muted: #a1a1aa;
+    --accent-color: #3b82f6;
+    --accent-hover: #2563eb;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --border-color: #3f3f46;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { text-align: center; margin-bottom: 25px; }
+.header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+.card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+.card h2 { font-size: 1.2rem; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; color: var(--accent-color); }
+.form-group { margin-bottom: 15px; }
+.form-inline { display: flex; gap: 10px; align-items: flex-end; }
+.form-inline .form-group { flex: 1; }
+label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
+input { width: 100%; background-color: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-color); padding: 10px; border-radius: 6px; }
+.result-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.result-value { font-weight: bold; }
+.result-total { color: var(--success-color); font-size: 1.2rem; }
+button { background-color: var(--accent-color); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+button:hover { background-color: var(--accent-hover); }
+button.btn-danger { background-color: var(--danger-color); padding: 5px 10px; font-size: 0.8rem; }
+button.btn-success { background-color: var(--success-color); }
+.tables-section { display: flex; flex-direction: column; gap: 25px; margin-bottom: 30px; }
+.table-container { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+.table-header-action { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th { color: var(--text-muted); font-size: 0.85rem; padding: 10px; border-bottom: 2px solid var(--border-color); }
+td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.footer-actions { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+@media (max-width: 768px) { .header-grid { grid-template-columns: 1fr; } .form-inline { flex-direction: column; } }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Babakötvény Könyvelő & Kalkulátor</h1>
+
+    <div class="header-grid">
+        <!-- Bal hasáb -->
+        <div class="card">
+            <h2>Gyermek adatai</h2>
+            <div class="form-group">
+                <label for="babyName">Baba neve</label>
+                <input type="text" id="babyName" value="Minta Baba" oninput="runCalculations()">
+            </div>
+            <div class="form-group">
+                <label for="birthDate">Születési ideje (ÉÉÉÉ.HH.NN)</label>
+                <input type="date" id="birthDate" value="2026-01-01" onchange="calculateExpiry(); runCalculations();">
+            </div>
+            <div class="form-inline">
+                <div class="form-group">
+                    <label for="expiryYear">Lejárati év / dátum</label>
+                    <input type="text" id="expiryYear" readonly>
+                </div>
+                <button type="button" onclick="calculateExpiry(); runCalculations();">Célév</button>
+            </div>
+            <div style="margin-top: 15px;" class="form-group">
+                <label for="startSupport">Életkezdési támogatás + kamata (Ft)</label>
+                <input type="number" id="startSupport" value="42500" oninput="runCalculations()">
+            </div>
+        </div>
+
+        <!-- Jobb hasáb -->
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h2>Számítás eredményei</h2>
+                <div class="result-row"><span>Összes saját befizetés:</span><span class="result-value" id="resOwnDeposit">0 Ft</span></div>
+                <div class="result-row"><span>Összes állami támogatás:</span><span class="result-value" id="resStateSupport">0 Ft</span></div>
+                <div class="result-row"><span>Összes kamat:</span><span class="result-value" id="resInterests">0 Ft</span></div>
+                <div class="result-row"><span>Effektív éves hozam:</span><span class="result-value" id="resYield">0.00 %</span></div>
+                <div class="result-row"><span>Inflációval korrigált érték:</span><span class="result-value" id="resInflationAdjusted">0 Ft</span></div>
+            </div>
+            <div class="result-row" style="border-top: 2px solid var(--border-color); padding-top: 15px;">
+                <span style="font-weight: bold;">Lejárati végösszeg:</span>
+                <span class="result-value result-total" id="resFinalTotal">0 Ft</span>
+            </div>
+        </div>
+    </div>
+
+        <!-- Táblázatok -->
+    <div class="tables-section">
+        <!-- 1. Táblázat: Befizetések -->
+        <div class="table-container">
+            <div class="table-header-action">
+                <h2>1. Befizetések (névérték)</h2>
+            </div>
+            <table id="depositTable">
+                <thead>
+                    <tr><th>Dátum</th><th>Összeg (Ft)</th><th>Művelet</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div style="margin-top: 15px; text-align: right;">
+                <button class="btn-success" onclick="addRow('depositTable')">+ Új sor hozzáadása</button>
+            </div>
+        </div>
+
+        <!-- 2. Táblázat: Kamatlábak -->
+        <div class="table-container">
+            <div class="table-header-action">
+                <h2>2. Kamatlábak (%) és Infláció</h2>
+            </div>
+            <table id="interestTable">
+                <thead>
+                    <tr><th>Év</th><th>Kamat (%)</th><th>Infláció (%)</th><th>Művelet</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div style="margin-top: 15px; text-align: right;">
+                <button class="btn-success" onclick="addRow('interestTable')">+ Új sor hozzáadása</button>
+            </div>
+        </div>
+
+        <!-- 3. Táblázat: Állami támogatás -->
+        <div class="table-container">
+            <div class="table-header-action">
+                <h2>3. Állami támogatás szabályai</h2>
+            </div>
+            <table id="supportTable">
+                <thead>
+                    <tr><th>Év</th><th>Támogatás (%)</th><th>Max (Ft)</th><th>Művelet</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div style="margin-top: 15px; text-align: right;">
+                <button class="btn-success" onclick="addRow('supportTable')">+ Új sor hozzáadása</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-actions">
+        <button onclick="exportJSON()">Mentés (JSON)</button>
+        <button style="background-color: var(--border-color);" onclick="document.getElementById('importFile').click()">Betöltés</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importJSON(this)">
+    </div>
+</div>
+
+<script>
+function calculateExpiry() {
+    const birthInput = document.getElementById('birthDate').value;
+    if (!birthInput) return;
+    const birthDate = new Date(birthInput);
+    const expiryYear = birthDate.getFullYear() + 18;
+    const formattedMonth = String(birthDate.getMonth() + 1).padStart(2, '0');
+    const formattedDay = String(birthDate.getDate()).padStart(2, '0');
+    document.getElementById('expiryYear').value = `${expiryYear}.${formattedMonth}.${formattedDay}.`;
+}
+
+function addRow(tableId, data = null) {
+    const tbody = document.getElementById(tableId).querySelector('tbody');
+    const row = document.createElement('tr');
+    if (tableId === 'depositTable') {
+        row.innerHTML = `
+            <td><input type="date" class="dep-date" value="${data ? data.date : ''}" onchange="runCalculations()"></td>
+            <td><input type="number" class="dep-amount" value="${data ? data.amount : ''}" oninput="runCalculations()"></td>
+            <td><button class="btn-danger" onclick="this.closest('tr').remove(); runCalculations();">Törlés</button></td>`;
+    } else if (tableId === 'interestTable') {
+        row.innerHTML = `
+            <td><input type="number" class="int-year" value="${data ? data.year : ''}" oninput="runCalculations()"></td>
+            <td><input type="number" step="0.1" class="int-rate" value="${data ? data.rate : ''}" oninput="runCalculations()"></td>
+            <td><input type="number" step="0.1" class="int-inf" value="${data ? data.inf : ''}" oninput="runCalculations()"></td>
+            <td><button class="btn-danger" onclick="this.closest('tr').remove(); runCalculations();">Törlés</button></td>`;
+    } else if (tableId === 'supportTable') {
+        row.innerHTML = `
+            <td><input type="number" class="sup-year" value="${data ? data.year : ''}" oninput="runCalculations()"></td>
+            <td><input type="number" class="sup-rate" value="${data ? data.rate : '10'}" oninput="runCalculations()"></td>
+            <td><input type="number" class="sup-max" value="${data ? data.max : '12000'}" oninput="runCalculations()"></td>
+            <td><button class="btn-danger" onclick="this.closest('tr').remove(); runCalculations();">Törlés</button></td>`;
+    }
+    tbody.appendChild(row);
+    if(!data) runCalculations();
+}
+
+function runCalculations() {
+    const birthInput = document.getElementById('birthDate').value;
+    if (!birthInput) return;
+    const startYear = new Date(birthInput).getFullYear();
+    const endYear = startYear + 18;
+    let currentBalance = parseFloat(document.getElementById('startSupport').value) || 0;
+
+    let deposits = [];
+    document.querySelectorAll('#depositTable tbody tr').forEach(tr => {
+        const dVal = tr.querySelector('.dep-date').value;
+        const aVal = parseFloat(tr.querySelector('.dep-amount').value) || 0;
+        if (dVal && aVal > 0) deposits.push({ amount: aVal, year: new Date(dVal).getFullYear() });
+    });
+
+    let interestsData = [];
+    document.querySelectorAll('#interestTable tbody tr').forEach(tr => {
+        const y = parseInt(tr.querySelector('.int-year').value);
+        const r = parseFloat(tr.querySelector('.int-rate').value) || 0;
+        const i = parseFloat(tr.querySelector('.int-inf').value) || 0;
+        if (y) interestsData.push({ year: y, rate: r / 100, inf: i / 100 });
+    });
+
+    let supportsData = [];
+    document.querySelectorAll('#supportTable tbody tr').forEach(tr => {
+        const y = parseInt(tr.querySelector('.sup-year').value);
+        const r = parseFloat(tr.querySelector('.sup-rate').value) || 0;
+        const m = parseFloat(tr.querySelector('.sup-max').value) || 0;
+        if (y) supportsData.push({ year: y, rate: r / 100, max: m });
+    });
+
+    let totalOwnDeposit = 0;
+    let totalStateSupport = 0;
+    let accumulatedInflation = 1;
+    let depositsByYear = {};
+
+    deposits.forEach(d => {
+        depositsByYear[d.year] = (depositsByYear[d.year] || 0) + d.amount;
+        totalOwnDeposit += d.amount;
+    });
+
+    for (let year = startYear; year <= endYear; year++) {
+        let intRule = interestsData.filter(i => i.year <= year).pop() || { rate: 0.115, inf: 0.042 };
+        let supRule = supportsData.filter(s => s.year <= year).pop() || { rate: 0.10, max: 12000 };
+
+        currentBalance += (depositsByYear[year] || 0);
+        if (year > startYear) currentBalance += (currentBalance * intRule.rate);
+        if (year > startYear) {
+            let prevDep = depositsByYear[year - 1] || 0;
+            if (prevDep > 0) {
+                let stateSup = Math.min(prevDep * supRule.rate, supRule.max);
+                currentBalance += stateSup;
+                totalStateSupport += stateSup;
+            }
+        }
+        if (year > startYear) accumulatedInflation *= (1 + intRule.inf);
+    }
+
+    let totalInterests = Math.max(0, currentBalance - totalOwnDeposit - totalStateSupport - (parseFloat(document.getElementById('startSupport').value) || 0));
+    let effectiveYield = (totalOwnDeposit > 0) ? (Math.pow((currentBalance / (totalOwnDeposit + 42500)), 1 / 18) - 1) * 100 : 0;
+
+    document.getElementById('resOwnDeposit').innerText = Math.round(totalOwnDeposit).toLocaleString('hu-HU') + " Ft";
+    document.getElementById('resStateSupport').innerText = Math.round(totalStateSupport).toLocaleString('hu-HU') + " Ft";
+    document.getElementById('resInterests').innerText = Math.round(totalInterests).toLocaleString('hu-HU') + " Ft";
+    document.getElementById('resYield').innerText = effectiveYield.toFixed(2) + " %";
+    document.getElementById('resInflationAdjusted').innerText = Math.round(currentBalance / accumulatedInflation).toLocaleString('hu-HU') + " Ft";
+    document.getElementById('resFinalTotal').innerText = Math.round(currentBalance).toLocaleString('hu-HU') + " Ft";
+}
+
+window.onload = function() {
+    calculateExpiry();
+    addRow('depositTable', {date: '2026-03-15', amount: '120000'});
+    addRow('interestTable', {year: '2026', rate: '7.4', inf: '4.4'});
+    addRow('supportTable', {year: '2026', rate: '10', max: '12000'});
+    runCalculations();
+};
+
+function exportJSON() {
+    const babyName = document.getElementById('babyName').value.trim() || 'adatok';
+    let data = {
+        babyName: document.getElementById('babyName').value,
+        birthDate: document.getElementById('birthDate').value,
+        expiryValue: document.getElementById('expiryYear').value,
+        startSupport: document.getElementById('startSupport').value,
+        deposits: [], interests: [], supports: []
+    };
+    document.querySelectorAll('#depositTable tbody tr').forEach(tr => data.deposits.push({ date: tr.querySelector('.dep-date').value, amount: tr.querySelector('.dep-amount').value }));
+    document.querySelectorAll('#interestTable tbody tr').forEach(tr => data.interests.push({ year: tr.querySelector('.int-year').value, rate: tr.querySelector('.int-rate').value, inf: tr.querySelector('.int-inf').value }));
+    document.querySelectorAll('#supportTable tbody tr').forEach(tr => data.supports.push({ year: tr.querySelector('.sup-year').value, rate: tr.querySelector('.sup-rate').value, max: tr.querySelector('.sup-max').value }));
+    
+    let a = document.createElement('a');
+    a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 4));
+    a.download = `${babyName}.json`;
+    a.click();
+}
+
+function importJSON(input) {
+    if (!input.files[0]) return;
+    let r = new FileReader();
+    r.onload = function(e) {
+        try {
+            let d = JSON.parse(e.target.result);
+            document.getElementById('babyName').value = d.babyName || '';
+            document.getElementById('birthDate').value = d.birthDate || '';
+            document.getElementById('expiryYear').value = d.expiryValue || '';
+            document.getElementById('startSupport').value = d.startSupport || '';
+            document.querySelector('#depositTable tbody').innerHTML = '';
+            document.querySelector('#interestTable tbody').innerHTML = '';
+            document.querySelector('#supportTable tbody').innerHTML = '';
+            if(d.deposits) d.deposits.forEach(x => addRow('depositTable', x));
+            if(d.interests) d.interests.forEach(x => addRow('interestTable', x));
+            if(d.supports) d.supports.forEach(x => addRow('supportTable', x));
+            runCalculations();
+            alert("Sikeres betöltés!");
+        } catch(err) { alert("Hiba a fájlban!"); }
+    };
+    r.readAsText(input.files[0]);
+    input.value = '';
+}
+
+</script>
+
+</body>
+</html>
